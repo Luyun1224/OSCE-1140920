@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>得獎教案影片展示系統 - 台灣醫事聯合臨床技能發展學會</title>
+    <!-- 引入 Tailwind CSS 框架 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts 的 Noto Sans TC 字體 -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        /* --- 全域樣式 --- */
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+        }
+        
+        /* --- 影片播放器樣式 --- */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 維持 16:9 的長寬比 */
+        }
+        
+        .video-container #mainVideo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+        
+        /* --- 播放清單樣式 --- */
+        .playlist-item {
+            position: relative; /* 為了讓懸浮提示框正確定位 */
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .playlist-item:hover {
+            transform: translateX(8px);
+            background-color: #f0f9ff; /* 滑鼠懸浮時的淺藍色背景 */
+        }
+        
+        /* 當前播放項目的樣式 */
+        .playlist-item.active {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            transform: translateX(8px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+        .playlist-item.active h4 {
+            color: white; /* 作用中項目的文字變為白色 */
+        }
+
+        /* --- 懸浮提示框 (Tooltip) 樣式 --- */
+        .playlist-item .tooltip-text {
+            visibility: hidden; /* 預設隱藏 */
+            opacity: 0;
+            width: 320px;
+            background-color: #2d3748; /* 深灰藍背景 */
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px 16px;
+            position: absolute;
+            z-index: 10;
+            bottom: 105%;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: opacity 0.3s ease, bottom 0.3s ease; /* 加入平滑動畫效果 */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            pointer-events: none; /* 避免干擾滑鼠事件 */
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* 提示框的小箭頭 */
+        .playlist-item .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: #2d3748 transparent transparent transparent;
+        }
+
+        /* 滑鼠懸浮時顯示提示框 */
+        .playlist-item:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+            bottom: 110%;
+        }
+
+        /* --- 其他元件樣式 --- */
+        .auto-play-indicator {
+            animation: pulse 2s infinite; /* 指示燈閃爍動畫 */
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .notice-card {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-left: 5px solid #ff6b6b;
+        }
+
+        /* 右下角固定警示標語樣式 */
+        .fixed-warning {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 0.75rem 1.5rem; /* 調整大小以避免遮擋 */
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: 2px solid #ef4444;
+            z-index: 50; /* 確保在最上層 */
+        }
+        .fixed-warning-text {
+            font-size: 2.25rem; /* 調整後的文字大小 */
+            line-height: 1;
+            font-weight: 700;
+            color: #ef4444;
+            animation: flashing-warning 1.5s infinite; /* 文字閃爍動畫 */
+        }
+        
+        @keyframes flashing-warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-white to-cyan-50 min-h-screen">
+    
+    <div class="container mx-auto px-6 py-8">
+        <!-- 頁首標題區 -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                🏆 台灣醫事聯合臨床技能發展學會 2025年優良OSCE教案展播
+            </h1>
+            <p class="text-lg text-gray-600 mt-4">日期: 2025年9月20日</p>
+        </header>
+
+        <!-- 觀看注意事項區 -->
+        <section class="notice-card rounded-2xl p-6 mb-8">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <span class="mr-2">⚠️</span>
+                觀看注意事項
+            </h3>
+            <ul class="space-y-2 text-gray-700">
+                <li class="flex items-start text-lg">
+                    <span class="text-orange-500 mr-2">•</span>
+                    影片將在播放完畢後自動輪播，您也可以隨時點選右側清單選擇特定教案。
+                </li>
+                <li class="flex items-start font-semibold text-red-600 text-lg">
+                    <span class="text-red-500 mr-2">•</span>
+                    所有展出影片之版權皆屬原作者及學會所有，嚴禁任何形式的錄製、轉載或散播影片連結。
+                </li>
+            </ul>
+        </section>
+
+        <!-- 主內容區 (影片與清單) -->
+        <main class="flex flex-col lg:flex-row gap-8">
+            <!-- 左側影片播放區 -->
+            <div class="lg:w-2/3">
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h2 id="currentTitle" class="text-2xl font-semibold text-gray-800">載入中...</h2>
+                        <div id="autoPlayStatus" class="flex items-center space-x-2">
+                            <span class="auto-play-indicator bg-red-500 w-3 h-3 rounded-full"></span>
+                            <span class="text-sm text-gray-500">自動輪播已啟用</span>
+                        </div>
+                    </div>
+                    
+                    <div class="video-container mb-4 bg-gray-900 rounded-lg">
+                        <div id="mainVideo"></div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p id="currentDescription" class="text-gray-700">請從右側選擇影片開始觀看。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側教案清單 -->
+            <aside class="lg:w-1/3">
+                <div class="bg-white rounded-2xl shadow-xl p-6 sticky top-8">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <span class="mr-2">📋</span>
+                        教案清單
+                    </h3>
+                    <div class="space-y-3" id="playlist">
+                        <!-- 教案清單將由 JavaScript 動態生成 -->
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- 右下角固定警示標語 -->
+    <div class="fixed-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" viewBox="0 0 64 64">
+            <g fill="none" stroke="#ef4444" stroke-width="5">
+                <circle cx="32" cy="32" r="28"/>
+                <line x1="12" y1="52" x2="52" y2="12"/>
+            </g>
+            <g fill="#111827">
+                <rect x="17" y="26" width="18" height="14" rx="2" />
+                <circle cx="26" cy="33" r="4" fill="white" />
+                <rect x="32" y="22" width="12" height="20" rx="2" />
+            </g>
+        </svg>
+        <span class="fixed-warning-text">嚴禁拍照、錄影</span>
+    </div>
+
+    <!-- 載入 YouTube Iframe Player API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        // --- 1. 資料定義 ---
+        const videos = [
+            { id: 'XRzcRTPM_LI', title: '第04組 中山醫學大學附設醫院─肌少症運動處方之全人照護', description: '本教案以肌少症病人為中心，設計跨領域全人照護情境模擬，目標為培養PGY物理治療師的臨床評估、醫病溝通、衛教指導與團隊協作能力，透過DXA報告判讀、Chair Stand Test、運動衛教與轉介營養師，強化肌少症全人整合照護。'},
+            { id: 'U1hTI5fnP_w', title: '第05組 奇美醫院─中風後吞嚥困難之復健團隊全人照護', description: '本教案主題為中風後吞嚥困難之復健團隊全人照護，教學對象為新進語言治療師、物理治療師、職腦治療師，透過團隊討論(TBL) 和OSCE教學方式，達成教學目的：獲得缺血性腔隙性中風合併的吞嚥障礙需要鼻胃管進食的病人之床邊復健的知識和技能；熟悉院内會診流程，達成復健團隊各成員有效溝通，各司其職以執行跨領域團隊照護，進而提升病人出院後之醫療品質。'},
+            { id: 'HarI0qDi_bA', title: '第12組 輔仁大學─屈指肌腱修復之術後評估與復健介入', description: '以手指肌腱修復術後功能受限為情境，評量學生(1)執行屈指淺肌與屈指深肌功能評估的技能，(2)依評估結果向病人說明其對動作和生活的影響，(3)適切提供疤痕照護衛教，握力訓練和功能性運動建議，強化臨床應能力。'},
+            { id: '0IeN-vG8-6A', title: '第14組 奇美醫院─敘事關懷-肺癌全人跨領域團隊照護', description: '藥師養成多聚焦於藥品，而非用藥的病人。敘事關懷是作者想要融入教案的元素之一，針對獨居高齡癌症病人，雖有標靶藥物可選擇，但病人的用藥配合度是決定預後的關鍵因素之一。醫事人員應以病人為中心，進行跨領域團隊照護。'},
+            { id: 'FPFbbeaSaxg', title: '第15組 奇美醫院─學齡期(6-12歲)1型糖尿病(T1DM)孩童跨領域全人照護', description: '結合多團隊(營養師、護理師、醫師、家長及學校端)合作與溝通，培訓新進人員對將第1型糖尿病兒童的照護，提升團隊的專業照護能力及跨專業領域間的合作與溝通，將照護延伸至家庭與學校，提升本院第1型糖尿病孩童的照護品質。'}
+        ];
+
+        let currentVideoIndex = 0;
+        let player;
+
+        // --- 2. DOM 元素獲取 ---
+        const playlistEl = document.getElementById('playlist');
+        const currentTitleEl = document.getElementById('currentTitle');
+        const currentDescriptionEl = document.getElementById('currentDescription');
+
+        // --- 3. YouTube API 核心功能 ---
+
+        /**
+         * 當 YouTube API 腳本載入完成後，會自動呼叫此函數。
+         */
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('mainVideo', {
+                height: '360',
+                width: '640',
+                playerVars: {
+                    'playsinline': 1,
+                    'autoplay': 1,
+                    'mute': 1, // 初始靜音以確保能自動播放
+                    'controls': 1, // 顯示播放控制器
+                    'rel': 0, // 播放結束後不顯示相關影片
+                    'modestbranding': 1,
+                    'iv_load_policy': 3 
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        /**
+         * 當播放器準備好時觸發。
+         */
+        function onPlayerReady(event) {
+            initPlaylist();
+            playVideo(0); // 載入並播放第一部影片
+            event.target.unMute(); // 取消靜音
+            event.target.setVolume(100); // 將音量設為最大
+        }
+
+        /**
+         * 當播放狀態改變時觸發 (例如：播放、暫停、結束)。
+         */
+        function onPlayerStateChange(event) {
+            // 當影片開始播放時，設定畫質為最高
+            if (event.data == YT.PlayerState.PLAYING) {
+                event.target.setPlaybackQuality('highres');
+            }
+            // 當影片播放完畢時，自動播放下一部
+            if (event.data == YT.PlayerState.ENDED) {
+                nextVideo();
+            }
+        }
+
+        // --- 4. 頁面互動功能 ---
+
+        /**
+         * 根據影片資料，動態生成右側的播放清單。
+         */
+        function initPlaylist() {
+            playlistEl.innerHTML = '';
+            videos.forEach((video, index) => {
+                const item = document.createElement('div');
+                item.className = 'playlist-item p-4 rounded-lg border border-gray-200';
+                
+                item.innerHTML = `
+                    <div class="flex items-center">
+                        <h4 class="font-medium text-gray-800">${video.title}</h4>
+                    </div>
+                    <p class="tooltip-text">${video.description}</p>
+                `;
+
+                item.addEventListener('click', () => {
+                    playVideo(index);
+                });
+                playlistEl.appendChild(item);
+            });
+        }
+
+        /**
+         * 播放指定索引的影片，並更新頁面資訊。
+         * @param {number} index - 要播放的影片在 videos 陣列中的索引。
+         */
+        function playVideo(index) {
+            if (index < 0 || index >= videos.length || !player) return;
+
+            currentVideoIndex = index;
+            const video = videos[index];
+            
+            player.loadVideoById(video.id);
+            
+            // 更新影片標題和介紹
+            currentTitleEl.textContent = video.title;
+            currentDescriptionEl.textContent = video.description;
+            
+            // 更新清單中作用中項目的樣式
+            document.querySelectorAll('.playlist-item').forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        /**
+         * 切換到下一部影片。
+         */
+        function nextVideo() {
+            const nextIndex = (currentVideoIndex + 1) % videos.length;
+            playVideo(nextIndex);
+        }
+    </script>
+</body>
+</html>
+
