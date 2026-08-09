@@ -54,6 +54,15 @@
             color: white; /* 作用中項目的文字變為白色 */
         }
 
+        .playlist-hospital,
+        .playlist-video-title {
+            display: block;
+        }
+
+        .playlist-video-title {
+            margin-top: 0.35rem;
+        }
+
         /* --- 懸浮提示框 (Tooltip) 樣式 --- */
         .playlist-item .tooltip-text {
             visibility: hidden; /* 預設隱藏 */
@@ -183,6 +192,11 @@
                     <div class="video-container mb-4 bg-gray-900 rounded-lg">
                         <div id="mainVideo"></div>
                     </div>
+
+                    <div id="videoError" class="hidden mb-4 rounded-lg bg-red-50 p-4 text-red-700" role="alert">
+                        這部影片無法在網頁內播放，可能是影片擁有者限制了嵌入播放。
+                        <a id="youtubeLink" class="font-semibold underline" target="_blank" rel="noopener noreferrer">前往 YouTube 觀看</a>
+                    </div>
                     
                     <div class="bg-gray-50 rounded-lg p-4">
                         <p id="currentDescription" class="text-gray-700">請從右側選擇影片開始觀看。</p>
@@ -261,7 +275,8 @@
                 },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
                 }
             });
         }
@@ -272,7 +287,6 @@
         function onPlayerReady(event) {
             initPlaylist();
             playVideo(0); // 載入並播放第一部影片
-            event.target.unMute(); // 取消靜音
             event.target.setVolume(100); // 將音量設為最大
         }
 
@@ -290,6 +304,13 @@
             }
         }
 
+        /**
+         * YouTube 拒絕嵌入或影片代碼有誤時，提供可正常開啟的原始網址。
+         */
+        function onPlayerError() {
+            document.getElementById('videoError').classList.remove('hidden');
+        }
+
         // --- 4. 頁面互動功能 ---
 
         /**
@@ -301,12 +322,24 @@
                 const item = document.createElement('div');
                 item.className = 'playlist-item p-4 rounded-lg border border-gray-200';
                 
-                item.innerHTML = `
-                    <div class="flex items-center">
-                        <h4 class="font-medium text-gray-800">${video.title}</h4>
-                    </div>
-                    <p class="tooltip-text">${video.description}</p>
-                `;
+                const [hospital, ...titleParts] = video.title.split('─');
+                const heading = document.createElement('h4');
+                heading.className = 'font-medium text-gray-800';
+
+                const hospitalLine = document.createElement('span');
+                hospitalLine.className = 'playlist-hospital';
+                hospitalLine.textContent = hospital;
+
+                const titleLine = document.createElement('span');
+                titleLine.className = 'playlist-video-title';
+                titleLine.textContent = titleParts.join('─');
+
+                const tooltip = document.createElement('p');
+                tooltip.className = 'tooltip-text';
+                tooltip.textContent = video.description;
+
+                heading.append(hospitalLine, titleLine);
+                item.append(heading, tooltip);
 
                 item.addEventListener('click', () => {
                     playVideo(index);
@@ -324,8 +357,15 @@
 
             currentVideoIndex = index;
             const video = videos[index];
-            
-            player.loadVideoById(video.id);
+
+            const youtubeLink = document.getElementById('youtubeLink');
+            document.getElementById('videoError').classList.add('hidden');
+            youtubeLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}`;
+
+            // 物件語法可確保每次切換都從頭載入；使用者點擊後明確要求播放，
+            // 避免部分瀏覽器只更換影片但停留在未播放狀態。
+            player.loadVideoById({ videoId: video.id, startSeconds: 0 });
+            player.playVideo();
             
             // 更新影片標題和介紹
             currentTitleEl.textContent = video.title;
