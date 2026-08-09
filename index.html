@@ -63,6 +63,22 @@
             margin-top: 0.35rem;
         }
 
+        .playlist-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.75rem;
+        }
+
+        .youtube-button {
+            position: relative;
+            z-index: 2;
+        }
+
+        .playlist-item.active .youtube-button {
+            background-color: white;
+            color: #0369a1;
+        }
+
         /* --- 懸浮提示框 (Tooltip) 樣式 --- */
         .playlist-item .tooltip-text {
             visibility: hidden; /* 預設隱藏 */
@@ -193,9 +209,11 @@
                         <div id="mainVideo"></div>
                     </div>
 
-                    <div id="videoError" class="hidden mb-4 rounded-lg bg-red-50 p-4 text-red-700" role="alert">
-                        這部影片無法在網頁內播放，可能是影片擁有者限制了嵌入播放。
-                        <a id="youtubeLink" class="font-semibold underline" target="_blank" rel="noopener noreferrer">前往 YouTube 觀看</a>
+                    <div id="videoError" class="hidden mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700" role="alert">
+                        <p class="font-semibold">這部影片的 YouTube 設定不允許在外部網頁播放。</p>
+                        <a id="youtubeLink" class="mt-3 inline-flex rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700" target="_blank" rel="noopener noreferrer">
+                            在 YouTube 開啟這部影片 ↗︎
+                        </a>
                     </div>
                     
                     <div class="bg-gray-50 rounded-lg p-4">
@@ -338,8 +356,24 @@
                 tooltip.className = 'tooltip-text';
                 tooltip.textContent = video.description;
 
+                // YouTube 若禁止嵌入，播放器 API 無法繞過限制。每一筆都提供
+                // 同步且可直接點擊的原始連結，不需等到非同步錯誤才能開啟。
+                const actions = document.createElement('div');
+                actions.className = 'playlist-actions';
+
+                const youtubeButton = document.createElement('a');
+                youtubeButton.className = 'youtube-button rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700';
+                youtubeButton.href = getYouTubeUrl(video.id);
+                youtubeButton.target = '_blank';
+                youtubeButton.rel = 'noopener noreferrer';
+                youtubeButton.textContent = 'YouTube 觀看 ↗︎';
+                youtubeButton.setAttribute('aria-label', `在 YouTube 開啟：${video.title}`);
+                youtubeButton.addEventListener('click', event => event.stopPropagation());
+
+                actions.appendChild(youtubeButton);
+
                 heading.append(hospitalLine, titleLine);
-                item.append(heading, tooltip);
+                item.append(heading, actions, tooltip);
 
                 item.addEventListener('click', () => {
                     playVideo(index);
@@ -360,7 +394,7 @@
 
             const youtubeLink = document.getElementById('youtubeLink');
             document.getElementById('videoError').classList.add('hidden');
-            youtubeLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}`;
+            youtubeLink.href = getYouTubeUrl(video.id);
 
             // 物件語法可確保每次切換都從頭載入；使用者點擊後明確要求播放，
             // 避免部分瀏覽器只更換影片但停留在未播放狀態。
@@ -379,6 +413,15 @@
                     item.classList.remove('active');
                 }
             });
+        }
+
+        /**
+         * 產生影片的 YouTube 原始網址。
+         * @param {string} videoId - YouTube 影片 ID。
+         * @returns {string} 可直接開啟的完整網址。
+         */
+        function getYouTubeUrl(videoId) {
+            return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
         }
 
         /**
